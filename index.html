@@ -115,11 +115,6 @@ btnStop.addEventListener("click", async () => {
 // ===== SIMPAN KE GOOGLE SHEETS =====
 const btnSimpan = document.getElementById("btnSimpan");
 const saveStatus = document.getElementById("saveStatus");
- const res = await fetch(API_URL, {
-  method: "POST",
-  headers: { "Content-Type": "text/plain;charset=utf-8" }, // Kunci: harus text/plain
-  body: JSON.stringify(data)
-});
 
 btnSimpan.addEventListener("click", async () => {
   const data = {
