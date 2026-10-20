@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scan Barcode → Google Sheets</title>
- const res = await fetch(API_URL, {
-  method: "POST",
-  headers: { "Content-Type": "text/plain;charset=utf-8" }, // Kunci: harus text/plain
-  body: JSON.stringify(data)
-});
 <script src="https://unpkg.com/html5-qrcode"></script>
 <style>
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -120,6 +115,11 @@ btnStop.addEventListener("click", async () => {
 // ===== SIMPAN KE GOOGLE SHEETS =====
 const btnSimpan = document.getElementById("btnSimpan");
 const saveStatus = document.getElementById("saveStatus");
+ const res = await fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "text/plain;charset=utf-8" }, // Kunci: harus text/plain
+  body: JSON.stringify(data)
+});
 
 btnSimpan.addEventListener("click", async () => {
   const data = {
