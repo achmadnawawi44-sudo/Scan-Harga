@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cek Harga Barang</title>
-<!-- Menggunakan library ZXing untuk scan -->
+<title>Scan Barang - Toko</title>
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,60 +35,52 @@
   .scanner-modal {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.9);
+    background: rgba(0,0,0,0.85);
     z-index: 999;
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 0;
+    padding: 16px;
   }
   .scanner-modal.show { display: flex; }
   .scanner-box {
     width: 100%;
-    height: 100%;
+    max-width: 420px;
     background: #000;
+    border-radius: 16px;
+    overflow: hidden;
     position: relative;
-    display: flex;
-    flex-direction: column;
   }
   .scanner-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
+    padding: 12px 14px;
     background: #111;
     color: #fff;
     font-size: 14px;
-    z-index: 10;
   }
   .scanner-header button {
     background: transparent;
     border: none;
     color: #fff;
-    font-size: 24px;
+    font-size: 22px;
     cursor: pointer;
     line-height: 1;
-    padding: 4px 10px;
+    padding: 4px 8px;
     border-radius: 6px;
   }
   .scanner-header button:hover { background: rgba(255,255,255,0.15); }
-  
   .video-wrap {
     position: relative;
-    flex: 1;
+    aspect-ratio: 4/3;
     background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
   }
-  #video { 
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; 
-  }
-
-  /* ===== Kotak panduan scan ===== */
+  #video { width: 100%; height: 100%; object-fit: cover; }
   .scan-overlay {
     position: absolute;
     inset: 0;
@@ -99,24 +90,24 @@
     pointer-events: none;
   }
   .scan-frame {
-    width: 85%;
-    height: 40%;
+    width: 70%;
+    height: 50%;
     border: 3px solid #22c55e;
-    border-radius: 16px;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-    position: relative;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
   }
-  .scan-hint {
+  .scan-line {
     position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: #fff;
-    font-size: 13px;
-    background: rgba(0,0,0,0.7);
-    padding: 8px 16px;
-    border-radius: 20px;
-    white-space: nowrap;
+    width: 70%;
+    height: 2px;
+    background: #22c55e;
+    animation: scan 2s linear infinite;
+    box-shadow: 0 0 8px #22c55e;
+  }
+  @keyframes scan {
+    0% { top: 25%; }
+    50% { top: 75%; }
+    100% { top: 25%; }
   }
 
   /* ===== Form ===== */
@@ -136,21 +127,10 @@
     border-radius: 10px;
     font-size: 15px;
     transition: border 0.2s;
-    background-color: #f9fafb;
-    color: #111;
-    font-weight: 500;
   }
   input:focus {
     outline: none;
     border-color: #2563eb;
-    background-color: #fff;
-  }
-  
-  /* Input yang tidak bisa diedit (hanya lihat) */
-  input[readonly] {
-    background-color: #f3f4f6;
-    color: #1f2937;
-    cursor: default;
   }
 
   /* ===== Input Barcode + tombol kamera ===== */
@@ -178,8 +158,7 @@
   .btn-cam:active { transform: scale(0.95); }
   .btn-cam:disabled { background: #9ca3af; cursor: not-allowed; }
 
-  /* Tombol Reset */
-  .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 6px; }
   button.btn-main {
     flex: 1;
     padding: 14px;
@@ -191,6 +170,9 @@
     transition: all 0.2s;
   }
   button.btn-main:active { transform: scale(0.97); }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
   .btn-secondary { background: #e5e7eb; color: #374151; }
   .btn-secondary:hover { background: #d1d5db; }
 
@@ -218,44 +200,40 @@
 <body>
 <div class="container">
   <header>
-    <h1>🏷️ Cek Harga Barang</h1>
-    <p>Scan barcode / QR Code untuk melihat harga</p>
+    <h1>📦 Scan Barang</h1>
+    <p>Scan atau ketik barcode untuk menambah produk</p>
   </header>
 
   <div class="status" id="status"></div>
 
   <div class="form-section">
     <div class="form-group">
-      <label>Barcode / QR Code</label>
+      <label>Barcode</label>
       <div class="barcode-row">
-        <input type="text" id="barcode" placeholder="Scan atau ketik barcode..." autocomplete="off">
+        <input type="text" id="barcode" placeholder="Scan atau ketik manual..." autocomplete="off" inputmode="numeric">
         <button class="btn-cam" id="camBtn" title="Scan dengan kamera">📷</button>
       </div>
     </div>
-    
     <div class="form-group">
       <label>Nama Barang</label>
-      <input type="text" id="nama" readonly placeholder="-">
+      <input type="text" id="nama" autocomplete="off">
     </div>
-    
     <div class="form-group">
       <label>Harga Normal (Rp)</label>
-      <input type="text" id="hargaNormal" readonly placeholder="-">
+      <input type="number" id="hargaNormal">
     </div>
-    
     <div class="form-group">
       <label>Harga Promo (Rp)</label>
-      <input type="text" id="hargaPromo" readonly placeholder="-">
+      <input type="number" id="hargaPromo">
     </div>
-    
     <div class="form-group">
-      <label>Stok Tersedia</label>
-      <input type="text" id="stok" readonly placeholder="-">
+      <label>Stok</label>
+      <input type="number" id="stok">
     </div>
 
-    <!-- Tombol Reset dikembalikan -->
     <div class="btn-row">
-      <button class="btn-main btn-secondary" id="resetBtn">🔄 Bersihkan Layar</button>
+      <button class="btn-main btn-secondary" id="resetBtn">🔄 Reset</button>
+      <button class="btn-main btn-primary" id="saveBtn">💾 Simpan</button>
     </div>
   </div>
 
@@ -266,14 +244,14 @@
 <div class="scanner-modal" id="scannerModal">
   <div class="scanner-box">
     <div class="scanner-header">
-      <span>📷 Arahkan ke Barcode / QR</span>
+      <span>📷 Arahkan ke barcode</span>
       <button id="closeCamBtn" title="Tutup">✕</button>
     </div>
     <div class="video-wrap">
       <video id="video" playsinline muted></video>
       <div class="scan-overlay">
         <div class="scan-frame"></div>
-        <div class="scan-hint">Posisikan barcode/QR di dalam kotak</div>
+        <div class="scan-line"></div>
       </div>
     </div>
   </div>
@@ -284,7 +262,7 @@
 // KONFIGURASI
 // ============================================================
 const API_URL = "https://script.google.com/macros/s/AKfycbyevpOdfxaKk7N1QkWljFWJm_KYaRFjOY5pUeVj5joITWVG26bo2Sjxu1m4ESXSTAxYkw/exec
-"; 
+";
 
 // ============================================================
 // ELEMEN
@@ -293,6 +271,7 @@ const video = document.getElementById('video');
 const camBtn = document.getElementById('camBtn');
 const scannerModal = document.getElementById('scannerModal');
 const closeCamBtn = document.getElementById('closeCamBtn');
+const saveBtn = document.getElementById('saveBtn');
 const resetBtn = document.getElementById('resetBtn');
 const statusEl = document.getElementById('status');
 const lastScanEl = document.getElementById('lastScan');
@@ -306,7 +285,6 @@ const stokEl = document.getElementById('stok');
 let codeReader = null;
 let isScanning = false;
 let debounceTimer = null;
-let streamRef = null;
 
 // ============================================================
 // STATUS
@@ -321,68 +299,29 @@ function showStatus(msg, type = 'info') {
 function hideStatus() { statusEl.classList.remove('show'); }
 
 // ============================================================
-// FORMAT RUPIAH
-// ============================================================
-function formatRupiah(angka) {
-  if (!angka && angka !== 0) return '-';
-  return 'Rp ' + parseInt(angka).toLocaleString('id-ID');
-}
-
-// ============================================================
 // KAMERA - BUKA
 // ============================================================
 async function openCamera() {
   try {
     scannerModal.classList.add('show');
     camBtn.disabled = true;
+    codeReader = new ZXing.BrowserMultiFormatReader();
     isScanning = true;
 
-    const constraints = {
-      audio: false,
-      video: {
-        facingMode: { ideal: 'environment' },
-        width:  { ideal: 1920, min: 1280 },
-        height: { ideal: 1080, min: 720 },
-        advanced: [{ focusMode: 'continuous' }]
-      }
-    };
-
-    try {
-      streamRef = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (e) {
-      streamRef = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: 'environment' } }
-      });
+    const devices = await codeReader.listVideoInputDevices();
+    let deviceId = null;
+    if (devices.length > 1) {
+      const back = devices.find(d => /back|rear|environment/i.test(d.label));
+      deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
+    } else if (devices.length === 1) {
+      deviceId = devices[0].deviceId;
     }
 
-    video.srcObject = streamRef;
-    await video.play();
-
-    codeReader = new ZXing.BrowserMultiFormatReader();
-    
-    codeReader.hints = new Map([
-      [ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.QR_CODE,
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.CODABAR,
-        ZXing.BarcodeFormat.DATA_MATRIX
-      ]],
-      [ZXing.DecodeHintType.TRY_HARDER, true]
-    ]);
-
-    codeReader.decodeFromVideoElement(video, (result, err) => {
+    await codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
       if (result && isScanning) {
         onBarcodeScanned(result.text);
       }
     });
-
   } catch (err) {
     console.error(err);
     showStatus('❌ Gagal akses kamera: ' + err.message, 'error');
@@ -399,10 +338,6 @@ function closeCamera() {
     try { codeReader.reset(); } catch(e) {}
     codeReader = null;
   }
-  if (streamRef) {
-    streamRef.getTracks().forEach(t => t.stop());
-    streamRef = null;
-  }
   if (video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;
@@ -418,7 +353,8 @@ async function onBarcodeScanned(text) {
   if (!isScanning) return;
   isScanning = false;
   beep();
-  closeCamera(); // Tutup otomatis setelah scan
+
+  closeCamera(); // tutup otomatis
 
   barcodeEl.value = text;
   lastScanEl.textContent = `Barcode terakhir: ${text}`;
@@ -426,19 +362,13 @@ async function onBarcodeScanned(text) {
 }
 
 // ============================================================
-// CARI HARGA KE SERVER
+// LOOKUP KE SERVER
 // ============================================================
 async function lookupBarcode(text) {
   const barcode = String(text || '').trim();
   if (!barcode) return;
 
-  // Reset form ke kosong sebelum mencari
-  namaEl.value = '-';
-  hargaNormalEl.value = '-';
-  hargaPromoEl.value = '-';
-  stokEl.value = '-';
-
-  showStatus('🔍 Mencari harga...', 'info');
+  showStatus('🔍 Mengecek barcode ' + barcode + '...', 'info');
 
   try {
     const res = await fetch(API_URL + '?barcode=' + encodeURIComponent(barcode), {
@@ -448,45 +378,23 @@ async function lookupBarcode(text) {
     const data = await res.json();
 
     if (data.found && data.item) {
-      namaEl.value = data.item.nama || '-';
-      hargaNormalEl.value = formatRupiah(data.item.hargaNormal);
-      hargaPromoEl.value = formatRupiah(data.item.hargaPromo);
-      stokEl.value = data.item.stok !== undefined && data.item.stok !== "" ? data.item.stok : '-';
-      
-      showStatus('✅ Barang ditemukan', 'success');
+      namaEl.value = data.item.nama || '';
+      hargaNormalEl.value = data.item.hargaNormal || '';
+      hargaPromoEl.value = data.item.hargaPromo || '';
+      stokEl.value = data.item.stok || '';
+      showStatus('✅ Barang ditemukan. Silakan update jika perlu.', 'success');
     } else {
-      showStatus('❌ Barang tidak ditemukan di database.', 'error');
+      namaEl.value = '';
+      hargaNormalEl.value = '';
+      hargaPromoEl.value = '';
+      stokEl.value = '';
+      showStatus('🆕 Barang baru. Isi data lalu simpan.', 'success');
+      namaEl.focus();
     }
   } catch (err) {
     console.error(err);
-    showStatus('⚠️ Gagal terhubung ke server. Cek koneksi internet.', 'error');
+    showStatus('⚠️ Gagal cek ke server. Isi manual lalu simpan.', 'error');
   }
-}
-
-// ============================================================
-// FUNGSI RESET (BERSIHKAN LAYAR)
-// ============================================================
-function resetScreen() {
-  // Hentikan timer pengetikan jika ada
-  clearTimeout(debounceTimer);
-  
-  // Kosongkan input barcode
-  barcodeEl.value = '';
-  
-  // Kembalikan form ke kondisi awal
-  namaEl.value = '';
-  hargaNormalEl.value = '';
-  hargaPromoEl.value = '';
-  stokEl.value = '';
-  
-  // Kosongkan info scan terakhir
-  lastScanEl.textContent = '';
-  
-  // Sembunyikan pesan status
-  hideStatus();
-  
-  // Fokuskan kursor ke input barcode agar siap scan/ketik lagi
-  barcodeEl.focus();
 }
 
 // ============================================================
@@ -509,25 +417,75 @@ function beep() {
 }
 
 // ============================================================
+// SIMPAN
+// ============================================================
+async function saveData() {
+  const payload = {
+    barcode: barcodeEl.value.trim(),
+    nama: namaEl.value.trim(),
+    hargaNormal: hargaNormalEl.value,
+    hargaPromo: hargaPromoEl.value,
+    stok: stokEl.value
+  };
+
+  if (!payload.barcode) return showStatus('❌ Barcode kosong.', 'error');
+  if (!payload.nama) return showStatus('❌ Nama barang wajib diisi.', 'error');
+  if (!payload.hargaNormal) return showStatus('❌ Harga normal wajib diisi.', 'error');
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳ Menyimpan...';
+  showStatus('Mengirim data ke spreadsheet...', 'info');
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showStatus('✅ Data berhasil disimpan!', 'success');
+      lastScanEl.textContent = `✅ Tersimpan: ${payload.nama} (${payload.barcode})`;
+      resetForm();
+    } else {
+      showStatus('❌ Gagal: ' + (data.message || 'Unknown error'), 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showStatus('❌ Gagal koneksi: ' + err.message, 'error');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Simpan';
+  }
+}
+
+function resetForm() {
+  barcodeEl.value = '';
+  namaEl.value = '';
+  hargaNormalEl.value = '';
+  hargaPromoEl.value = '';
+  stokEl.value = '';
+}
+
+// ============================================================
 // EVENT LISTENERS
 // ============================================================
 camBtn.addEventListener('click', openCamera);
 closeCamBtn.addEventListener('click', closeCamera);
-resetBtn.addEventListener('click', resetScreen); // Tombol reset diaktifkan
+saveBtn.addEventListener('click', saveData);
+resetBtn.addEventListener('click', () => {
+  resetForm();
+  lastScanEl.textContent = '';
+  hideStatus();
+});
 
 // Ketik manual → cek otomatis setelah 800ms berhenti mengetik
 barcodeEl.addEventListener('input', () => {
   clearTimeout(debounceTimer);
   const val = barcodeEl.value.trim();
-  
-  if (val.length < 4) {
-    namaEl.value = '';
-    hargaNormalEl.value = '';
-    hargaPromoEl.value = '';
-    stokEl.value = '';
-    return;
-  }
-  
+  if (val.length < 4) return;
   debounceTimer = setTimeout(() => {
     if (barcodeEl.value.trim() === val) {
       lookupBarcode(val);
@@ -544,7 +502,7 @@ barcodeEl.addEventListener('keydown', (e) => {
   }
 });
 
-// Tutup modal jika klik di luar kotak
+// Tutup modal jika klik di luar box
 scannerModal.addEventListener('click', (e) => {
   if (e.target === scannerModal) closeCamera();
 });
