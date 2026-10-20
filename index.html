@@ -1,1 +1,515 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan Barang - Toko</title>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a1a;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    color: #fff;
+    padding: 18px 20px;
+    text-align: center;
+  }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header p { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+
+  /* ===== Scanner Modal ===== */
+  .scanner-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .scanner-modal.show { display: flex; }
+  .scanner-box {
+    width: 100%;
+    max-width: 420px;
+    background: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+  .scanner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: #111;
+    color: #fff;
+    font-size: 14px;
+  }
+  .scanner-header button {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .scanner-header button:hover { background: rgba(255,255,255,0.15); }
+  .video-wrap {
+    position: relative;
+    aspect-ratio: 4/3;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .scan-frame {
+    width: 70%;
+    height: 50%;
+    border: 3px solid #22c55e;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+  }
+  .scan-line {
+    position: absolute;
+    width: 70%;
+    height: 2px;
+    background: #22c55e;
+    animation: scan 2s linear infinite;
+    box-shadow: 0 0 8px #22c55e;
+  }
+  @keyframes scan {
+    0% { top: 25%; }
+    50% { top: 75%; }
+    100% { top: 25%; }
+  }
+
+  /* ===== Form ===== */
+  .form-section { padding: 16px; }
+  .form-group { margin-bottom: 12px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: border 0.2s;
+  }
+  input:focus {
+    outline: none;
+    border-color: #2563eb;
+  }
+
+  /* ===== Input Barcode + tombol kamera ===== */
+  .barcode-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .barcode-row input { flex: 1; }
+  .btn-cam {
+    width: 48px;
+    min-width: 48px;
+    border: none;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .btn-cam:hover { background: #1d4ed8; }
+  .btn-cam:active { transform: scale(0.95); }
+  .btn-cam:disabled { background: #9ca3af; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+  button.btn-main {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button.btn-main:active { transform: scale(0.97); }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-secondary { background: #e5e7eb; color: #374151; }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  .status {
+    padding: 12px 16px;
+    font-size: 13px;
+    text-align: center;
+    border-radius: 8px;
+    margin: 0 16px 12px;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.success { background: #dcfce7; color: #166534; }
+  .status.error { background: #fee2e2; color: #991b1b; }
+  .status.info { background: #dbeafe; color: #1e40af; }
+
+  .last-scan {
+    padding: 0 16px 16px;
+    font-size: 13px;
+    color: #6b7280;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📦 Scan Barang</h1>
+    <p>Scan atau ketik barcode untuk menambah produk</p>
+  </header>
+
+  <div class="status" id="status"></div>
+
+  <div class="form-section">
+    <div class="form-group">
+      <label>Barcode</label>
+      <div class="barcode-row">
+        <input type="text" id="barcode" placeholder="Scan atau ketik manual..." autocomplete="off" inputmode="numeric">
+        <button class="btn-cam" id="camBtn" title="Scan dengan kamera">📷</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Nama Barang</label>
+      <input type="text" id="nama" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Harga Normal (Rp)</label>
+      <input type="number" id="hargaNormal">
+    </div>
+    <div class="form-group">
+      <label>Harga Promo (Rp)</label>
+      <input type="number" id="hargaPromo">
+    </div>
+    <div class="form-group">
+      <label>Stok</label>
+      <input type="number" id="stok">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-main btn-secondary" id="resetBtn">🔄 Reset</button>
+      <button class="btn-main btn-primary" id="saveBtn">💾 Simpan</button>
+    </div>
+  </div>
+
+  <div class="last-scan" id="lastScan"></div>
+</div>
+
+<!-- ===== Modal Scanner ===== -->
+<div class="scanner-modal" id="scannerModal">
+  <div class="scanner-box">
+    <div class="scanner-header">
+      <span>📷 Arahkan ke barcode</span>
+      <button id="closeCamBtn" title="Tutup">✕</button>
+    </div>
+    <div class="video-wrap">
+      <video id="video" playsinline muted></video>
+      <div class="scan-overlay">
+        <div class="scan-frame"></div>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// KONFIGURASI
+// ============================================================
 const API_URL = "https://script.google.com/macros/s/AKfycbyevpOdfxaKk7N1QkWljFWJm_KYaRFjOY5pUeVj5joITWVG26bo2Sjxu1m4ESXSTAxYkw/exec";
+
+// ============================================================
+// ELEMEN
+// ============================================================
+const video = document.getElementById('video');
+const camBtn = document.getElementById('camBtn');
+const scannerModal = document.getElementById('scannerModal');
+const closeCamBtn = document.getElementById('closeCamBtn');
+const saveBtn = document.getElementById('saveBtn');
+const resetBtn = document.getElementById('resetBtn');
+const statusEl = document.getElementById('status');
+const lastScanEl = document.getElementById('lastScan');
+
+const barcodeEl = document.getElementById('barcode');
+const namaEl = document.getElementById('nama');
+const hargaNormalEl = document.getElementById('hargaNormal');
+const hargaPromoEl = document.getElementById('hargaPromo');
+const stokEl = document.getElementById('stok');
+
+let codeReader = null;
+let isScanning = false;
+let debounceTimer = null;
+
+// ============================================================
+// STATUS
+// ============================================================
+function showStatus(msg, type = 'info') {
+  statusEl.textContent = msg;
+  statusEl.className = `status show ${type}`;
+  if (type !== 'info') {
+    setTimeout(() => statusEl.classList.remove('show'), 4000);
+  }
+}
+function hideStatus() { statusEl.classList.remove('show'); }
+
+// ============================================================
+// KAMERA - BUKA
+// ============================================================
+async function openCamera() {
+  try {
+    scannerModal.classList.add('show');
+    camBtn.disabled = true;
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    isScanning = true;
+
+    const devices = await codeReader.listVideoInputDevices();
+    let deviceId = null;
+    if (devices.length > 1) {
+      const back = devices.find(d => /back|rear|environment/i.test(d.label));
+      deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
+    } else if (devices.length === 1) {
+      deviceId = devices[0].deviceId;
+    }
+
+    await codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+      if (result && isScanning) {
+        onBarcodeScanned(result.text);
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    showStatus('❌ Gagal akses kamera: ' + err.message, 'error');
+    closeCamera();
+  }
+}
+
+// ============================================================
+// KAMERA - TUTUP
+// ============================================================
+function closeCamera() {
+  isScanning = false;
+  if (codeReader) {
+    try { codeReader.reset(); } catch(e) {}
+    codeReader = null;
+  }
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  scannerModal.classList.remove('show');
+  camBtn.disabled = false;
+}
+
+// ============================================================
+// BARCODE TERBACA DARI KAMERA
+// ============================================================
+async function onBarcodeScanned(text) {
+  if (!isScanning) return;
+  isScanning = false;
+  beep();
+
+  closeCamera(); // tutup otomatis
+
+  barcodeEl.value = text;
+  lastScanEl.textContent = `Barcode terakhir: ${text}`;
+  await lookupBarcode(text);
+}
+
+// ============================================================
+// LOOKUP KE SERVER
+// ============================================================
+async function lookupBarcode(text) {
+  const barcode = String(text || '').trim();
+  if (!barcode) return;
+
+  showStatus('🔍 Mengecek barcode ' + barcode + '...', 'info');
+
+  try {
+    const res = await fetch(API_URL + '?barcode=' + encodeURIComponent(barcode), {
+      method: 'GET',
+      mode: 'cors'
+    });
+    const data = await res.json();
+
+    if (data.found && data.item) {
+      namaEl.value = data.item.nama || '';
+      hargaNormalEl.value = data.item.hargaNormal || '';
+      hargaPromoEl.value = data.item.hargaPromo || '';
+      stokEl.value = data.item.stok || '';
+      showStatus('✅ Barang ditemukan. Silakan update jika perlu.', 'success');
+    } else {
+      namaEl.value = '';
+      hargaNormalEl.value = '';
+      hargaPromoEl.value = '';
+      stokEl.value = '';
+      showStatus('🆕 Barang baru. Isi data lalu simpan.', 'success');
+      namaEl.focus();
+    }
+  } catch (err) {
+    console.error(err);
+    showStatus('⚠️ Gagal cek ke server. Isi manual lalu simpan.', 'error');
+  }
+}
+
+// ============================================================
+// BEEP
+// ============================================================
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {}
+}
+
+// ============================================================
+// SIMPAN
+// ============================================================
+async function saveData() {
+  const payload = {
+    barcode: barcodeEl.value.trim(),
+    nama: namaEl.value.trim(),
+    hargaNormal: hargaNormalEl.value,
+    hargaPromo: hargaPromoEl.value,
+    stok: stokEl.value
+  };
+
+  if (!payload.barcode) return showStatus('❌ Barcode kosong.', 'error');
+  if (!payload.nama) return showStatus('❌ Nama barang wajib diisi.', 'error');
+  if (!payload.hargaNormal) return showStatus('❌ Harga normal wajib diisi.', 'error');
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳ Menyimpan...';
+  showStatus('Mengirim data ke spreadsheet...', 'info');
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showStatus('✅ Data berhasil disimpan!', 'success');
+      lastScanEl.textContent = `✅ Tersimpan: ${payload.nama} (${payload.barcode})`;
+      resetForm();
+    } else {
+      showStatus('❌ Gagal: ' + (data.message || 'Unknown error'), 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showStatus('❌ Gagal koneksi: ' + err.message, 'error');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Simpan';
+  }
+}
+
+function resetForm() {
+  barcodeEl.value = '';
+  namaEl.value = '';
+  hargaNormalEl.value = '';
+  hargaPromoEl.value = '';
+  stokEl.value = '';
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+camBtn.addEventListener('click', openCamera);
+closeCamBtn.addEventListener('click', closeCamera);
+saveBtn.addEventListener('click', saveData);
+resetBtn.addEventListener('click', () => {
+  resetForm();
+  lastScanEl.textContent = '';
+  hideStatus();
+});
+
+// Ketik manual → cek otomatis setelah 800ms berhenti mengetik
+barcodeEl.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  const val = barcodeEl.value.trim();
+  if (val.length < 4) return;
+  debounceTimer = setTimeout(() => {
+    if (barcodeEl.value.trim() === val) {
+      lookupBarcode(val);
+    }
+  }, 800);
+});
+
+// Enter di input barcode → langsung cek
+barcodeEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    clearTimeout(debounceTimer);
+    lookupBarcode(barcodeEl.value.trim());
+  }
+});
+
+// Tutup modal jika klik di luar box
+scannerModal.addEventListener('click', (e) => {
+  if (e.target === scannerModal) closeCamera();
+});
+
+// Cek HTTPS
+if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+  showStatus('⚠️ Kamera butuh HTTPS. Gunakan GitHub Pages.', 'error');
+}
+</script>
+</body>
+</html>
