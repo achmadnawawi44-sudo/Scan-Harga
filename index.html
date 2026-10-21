@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scan Barang - Toko</title>
-<script src="https://unpkg.com/@zxing/library@latest"></script>
+<!-- ZXing versi baru: browser + library -->
+<script src="https://unpkg.com/@zxing/library@0.21.3"></script>
+<script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -30,6 +32,35 @@
   }
   header h1 { font-size: 20px; font-weight: 600; }
   header p { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+
+  /* ===== Tab Menu ===== */
+  .tabs {
+    display: flex;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background: #fff;
+  }
+  .tab:hover:not(.active) { background: #eef2ff; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 
   /* ===== Scanner Modal ===== */
   .scanner-modal {
@@ -59,7 +90,9 @@
     background: #111;
     color: #fff;
     font-size: 14px;
+    gap: 8px;
   }
+  .scanner-header .title { flex: 1; }
   .scanner-header button {
     background: transparent;
     border: none;
@@ -71,6 +104,8 @@
     border-radius: 6px;
   }
   .scanner-header button:hover { background: rgba(255,255,255,0.15); }
+  .scanner-header .torch-btn.active { background: #f59e0b; color: #000; }
+
   .video-wrap {
     position: relative;
     aspect-ratio: 4/3;
@@ -195,56 +230,167 @@
     color: #6b7280;
     text-align: center;
   }
+
+  /* ===== Search Results ===== */
+  .search-result-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fff;
+  }
+  .search-result-item:hover {
+    border-color: #2563eb;
+    background: #eff6ff;
+  }
+  .search-result-item .name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+    color: #111827;
+  }
+  .search-result-item .meta {
+    font-size: 12px;
+    color: #6b7280;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .search-result-item .meta .price { color: #059669; font-weight: 600; }
+  .search-result-item .meta .promo { color: #dc2626; font-weight: 600; }
+  .search-result-item .meta .stock { color: #7c3aed; }
+  .search-empty {
+    text-align: center;
+    padding: 24px;
+    color: #9ca3af;
+    font-size: 13px;
+  }
+
+  /* ===== Edit inline ===== */
+  .edit-form {
+    padding: 16px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+  }
+  .edit-form h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: #374151;
+  }
+  .edit-form .form-group { margin-bottom: 10px; }
+  .edit-form input { font-size: 14px; padding: 10px; }
+
+  .divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 12px 0;
+  }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
     <h1>📦 Scan Barang</h1>
-    <p>Scan atau ketik barcode untuk menambah produk</p>
+    <p>Scan barcode / QR code atau cari dari nama barang</p>
   </header>
+
+  <!-- Tab Menu -->
+  <div class="tabs">
+    <button class="tab active" data-tab="scan">📷 Scan &amp; Tambah</button>
+    <button class="tab" data-tab="search">🔍 Cari Barang</button>
+  </div>
 
   <div class="status" id="status"></div>
 
-  <div class="form-section">
-    <div class="form-group">
-      <label>Barcode</label>
-      <div class="barcode-row">
-        <input type="text" id="barcode" placeholder="Scan atau ketik manual..." autocomplete="off" inputmode="numeric">
-        <button class="btn-cam" id="camBtn" title="Scan dengan kamera">📷</button>
+  <!-- ================= TAB: SCAN & TAMBAH ================= -->
+  <div class="tab-content active" id="tab-scan">
+    <div class="form-section">
+      <div class="form-group">
+        <label>Barcode / QR Code</label>
+        <div class="barcode-row">
+          <input type="text" id="barcode" placeholder="Scan atau ketik manual..." autocomplete="off" inputmode="numeric">
+          <button class="btn-cam" id="camBtn" title="Scan dengan kamera">📷</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Nama Barang</label>
+        <input type="text" id="nama" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Harga Normal (Rp)</label>
+        <input type="number" id="hargaNormal">
+      </div>
+      <div class="form-group">
+        <label>Harga Promo (Rp)</label>
+        <input type="number" id="hargaPromo">
+      </div>
+      <div class="form-group">
+        <label>Stok</label>
+        <input type="number" id="stok">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-main btn-secondary" id="resetBtn">🔄 Reset</button>
+        <button class="btn-main btn-primary" id="saveBtn">💾 Simpan</button>
       </div>
     </div>
-    <div class="form-group">
-      <label>Nama Barang</label>
-      <input type="text" id="nama" autocomplete="off">
-    </div>
-    <div class="form-group">
-      <label>Harga Normal (Rp)</label>
-      <input type="number" id="hargaNormal">
-    </div>
-    <div class="form-group">
-      <label>Harga Promo (Rp)</label>
-      <input type="number" id="hargaPromo">
-    </div>
-    <div class="form-group">
-      <label>Stok</label>
-      <input type="number" id="stok">
-    </div>
 
-    <div class="btn-row">
-      <button class="btn-main btn-secondary" id="resetBtn">🔄 Reset</button>
-      <button class="btn-main btn-primary" id="saveBtn">💾 Simpan</button>
-    </div>
+    <div class="last-scan" id="lastScan"></div>
   </div>
 
-  <div class="last-scan" id="lastScan"></div>
+  <!-- ================= TAB: CARI BARANG ================= -->
+  <div class="tab-content" id="tab-search">
+    <div class="form-section">
+      <div class="form-group">
+        <label>Cari berdasarkan nama barang</label>
+        <div class="barcode-row">
+          <input type="text" id="searchInput" placeholder="Ketik nama barang..." autocomplete="off">
+          <button class="btn-cam" id="searchBtn" title="Cari">🔍</button>
+        </div>
+      </div>
+
+      <div id="searchResults"></div>
+
+      <!-- Form edit yang muncul setelah hasil diklik -->
+      <div class="edit-form" id="editForm" style="display:none;">
+        <h3>✏️ Edit Barang</h3>
+        <div class="form-group">
+          <label>Barcode</label>
+          <input type="text" id="editBarcode" readonly style="background:#e5e7eb;">
+        </div>
+        <div class="form-group">
+          <label>Nama Barang</label>
+          <input type="text" id="editNama">
+        </div>
+        <div class="form-group">
+          <label>Harga Normal (Rp)</label>
+          <input type="number" id="editHargaNormal">
+        </div>
+        <div class="form-group">
+          <label>Harga Promo (Rp)</label>
+          <input type="number" id="editHargaPromo">
+        </div>
+        <div class="form-group">
+          <label>Stok</label>
+          <input type="number" id="editStok">
+        </div>
+        <div class="btn-row">
+          <button class="btn-main btn-secondary" id="cancelEditBtn">✖️ Batal</button>
+          <button class="btn-main btn-primary" id="updateBtn">💾 Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ===== Modal Scanner ===== -->
 <div class="scanner-modal" id="scannerModal">
   <div class="scanner-box">
     <div class="scanner-header">
-      <span>📷 Arahkan ke barcode</span>
+      <span class="title">📷 Arahkan ke barcode / QR</span>
+      <button class="torch-btn" id="torchBtn" title="Senter">🔦</button>
       <button id="closeCamBtn" title="Tutup">✕</button>
     </div>
     <div class="video-wrap">
@@ -270,6 +416,7 @@ const video = document.getElementById('video');
 const camBtn = document.getElementById('camBtn');
 const scannerModal = document.getElementById('scannerModal');
 const closeCamBtn = document.getElementById('closeCamBtn');
+const torchBtn = document.getElementById('torchBtn');
 const saveBtn = document.getElementById('saveBtn');
 const resetBtn = document.getElementById('resetBtn');
 const statusEl = document.getElementById('status');
@@ -281,9 +428,28 @@ const hargaNormalEl = document.getElementById('hargaNormal');
 const hargaPromoEl = document.getElementById('hargaPromo');
 const stokEl = document.getElementById('stok');
 
+// Tab search elements
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const searchResults = document.getElementById('searchResults');
+const editForm = document.getElementById('editForm');
+const editBarcode = document.getElementById('editBarcode');
+const editNama = document.getElementById('editNama');
+const editHargaNormal = document.getElementById('editHargaNormal');
+const editHargaPromo = document.getElementById('editHargaPromo');
+const editStok = document.getElementById('editStok');
+const updateBtn = document.getElementById('updateBtn');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+
+// ============================================================
+// STATE
+// ============================================================
 let codeReader = null;
+let controls = null;   // dari @zxing/browser
 let isScanning = false;
 let debounceTimer = null;
+let searchDebounce = null;
+let currentTrack = null;
 
 // ============================================================
 // STATUS
@@ -298,32 +464,102 @@ function showStatus(msg, type = 'info') {
 function hideStatus() { statusEl.classList.remove('show'); }
 
 // ============================================================
-// KAMERA - BUKA
+// TAB SWITCHING
+// ============================================================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    hideStatus();
+  });
+});
+
+// ============================================================
+// KAMERA - BUKA (modern: @zxing/browser)
 // ============================================================
 async function openCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showStatus('❌ Browser tidak mendukung kamera.', 'error');
+    return;
+  }
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    showStatus('⚠️ Kamera butuh HTTPS. Gunakan GitHub Pages.', 'error');
+    return;
+  }
+
   try {
     scannerModal.classList.add('show');
     camBtn.disabled = true;
-    codeReader = new ZXing.BrowserMultiFormatReader();
+    torchBtn.classList.remove('active');
+
+    // Hint: kamera belakang, resolusi ideal
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        advanced: [{ focusMode: 'continuous' }]
+      }
+    };
+
+    // Hint format yang didukung (barcode + QR)
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.CODABAR,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.PDF_417,
+      ZXing.BarcodeFormat.AZTEC
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    codeReader = new ZXingBrowser.BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 200,
+      delayBetweenScanSuccess: 800
+    });
+
+    controls = await codeReader.decodeFromConstraints(
+      constraints,
+      video,
+      (result, err) => {
+        if (result && isScanning) {
+          onBarcodeScanned(result.getText());
+        }
+        // abaikan error "NotFoundException" — normal saat belum ada kode
+      }
+    );
+
     isScanning = true;
 
-    const devices = await codeReader.listVideoInputDevices();
-    let deviceId = null;
-    if (devices.length > 1) {
-      const back = devices.find(d => /back|rear|environment/i.test(d.label));
-      deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
-    } else if (devices.length === 1) {
-      deviceId = devices[0].deviceId;
-    }
-
-    await codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-      if (result && isScanning) {
-        onBarcodeScanned(result.text);
+    // Simpan track untuk torch
+    if (video.srcObject) {
+      currentTrack = video.srcObject.getVideoTracks()[0];
+      const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+      if (caps && caps.torch) {
+        torchBtn.style.display = '';
+      } else {
+        torchBtn.style.display = 'none';
       }
-    });
+    } else {
+      torchBtn.style.display = 'none';
+    }
   } catch (err) {
     console.error(err);
-    showStatus('❌ Gagal akses kamera: ' + err.message, 'error');
+    let msg = err.message || String(err);
+    if (err.name === 'NotAllowedError') msg = 'Izin kamera ditolak.';
+    if (err.name === 'NotFoundError') msg = 'Kamera tidak ditemukan.';
+    showStatus('❌ Gagal akses kamera: ' + msg, 'error');
     closeCamera();
   }
 }
@@ -333,16 +569,37 @@ async function openCamera() {
 // ============================================================
 function closeCamera() {
   isScanning = false;
+  if (controls) {
+    try { controls.stop(); } catch (e) {}
+    controls = null;
+  }
   if (codeReader) {
-    try { codeReader.reset(); } catch(e) {}
+    try { codeReader.reset(); } catch (e) {}
     codeReader = null;
   }
   if (video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;
   }
+  currentTrack = null;
   scannerModal.classList.remove('show');
   camBtn.disabled = false;
+}
+
+// ============================================================
+// TORCH (SENTER)
+// ============================================================
+async function toggleTorch() {
+  if (!currentTrack) return;
+  try {
+    const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+    if (!caps.torch) return;
+    const current = currentTrack.getSettings().torch || false;
+    await currentTrack.applyConstraints({ advanced: [{ torch: !current }] });
+    torchBtn.classList.toggle('active', !current);
+  } catch (e) {
+    console.warn('Torch error', e);
+  }
 }
 
 // ============================================================
@@ -351,9 +608,9 @@ function closeCamera() {
 async function onBarcodeScanned(text) {
   if (!isScanning) return;
   isScanning = false;
+  vibrate();
   beep();
-
-  closeCamera(); // tutup otomatis
+  closeCamera();
 
   barcodeEl.value = text;
   lastScanEl.textContent = `Barcode terakhir: ${text}`;
@@ -361,7 +618,7 @@ async function onBarcodeScanned(text) {
 }
 
 // ============================================================
-// LOOKUP KE SERVER
+// LOOKUP BARCODE KE SERVER
 // ============================================================
 async function lookupBarcode(text) {
   const barcode = String(text || '').trim();
@@ -397,7 +654,7 @@ async function lookupBarcode(text) {
 }
 
 // ============================================================
-// BEEP
+// BEEP & VIBRATE
 // ============================================================
 function beep() {
   try {
@@ -414,9 +671,12 @@ function beep() {
     osc.stop(ctx.currentTime + 0.15);
   } catch (e) {}
 }
+function vibrate() {
+  if (navigator.vibrate) navigator.vibrate(120);
+}
 
 // ============================================================
-// SIMPAN
+// SIMPAN (TAB SCAN)
 // ============================================================
 async function saveData() {
   const payload = {
@@ -469,10 +729,141 @@ function resetForm() {
 }
 
 // ============================================================
+// SEARCH BY NAME
+// ============================================================
+async function searchByName(query) {
+  const q = String(query || '').trim();
+  if (!q) {
+    searchResults.innerHTML = '<div class="search-empty">Ketik nama barang untuk mencari.</div>';
+    editForm.style.display = 'none';
+    return;
+  }
+
+  searchResults.innerHTML = '<div class="search-empty">🔍 Mencari...</div>';
+  editForm.style.display = 'none';
+
+  try {
+    const res = await fetch(API_URL + '?nama=' + encodeURIComponent(q), {
+      method: 'GET',
+      mode: 'cors'
+    });
+    const data = await res.json();
+
+    // Server ideal mengembalikan { found: true, items: [...] }
+    // Fallback: jika server hanya mengembalikan satu item
+    let items = [];
+    if (Array.isArray(data.items)) items = data.items;
+    else if (data.found && data.item) items = [data.item];
+    else if (Array.isArray(data.data)) items = data.data;
+
+    if (!items.length) {
+      searchResults.innerHTML = '<div class="search-empty">😕 Barang tidak ditemukan.</div>';
+      return;
+    }
+
+    renderSearchResults(items);
+  } catch (err) {
+    console.error(err);
+    searchResults.innerHTML = '<div class="search-empty">⚠️ Gagal mencari ke server.</div>';
+  }
+}
+
+function renderSearchResults(items) {
+  searchResults.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'search-result-item';
+    div.innerHTML = `
+      <div class="name">${escapeHtml(item.nama || '(tanpa nama)')}</div>
+      <div class="meta">
+        <span>🏷️ ${escapeHtml(item.barcode || '-')}</span>
+        <span class="price">Rp ${formatRp(item.hargaNormal)}</span>
+        ${item.hargaPromo ? `<span class="promo">Promo Rp ${formatRp(item.hargaPromo)}</span>` : ''}
+        <span class="stock">Stok: ${escapeHtml(String(item.stok ?? '-'))}</span>
+      </div>
+    `;
+    div.addEventListener('click', () => openEditForm(item));
+    searchResults.appendChild(div);
+  });
+}
+
+function openEditForm(item) {
+  editForm.style.display = 'block';
+  editBarcode.value = item.barcode || '';
+  editNama.value = item.nama || '';
+  editHargaNormal.value = item.hargaNormal || '';
+  editHargaPromo.value = item.hargaPromo || '';
+  editStok.value = item.stok || '';
+  editNama.focus();
+  editForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function updateData() {
+  const payload = {
+    barcode: editBarcode.value.trim(),
+    nama: editNama.value.trim(),
+    hargaNormal: editHargaNormal.value,
+    hargaPromo: editHargaPromo.value,
+    stok: editStok.value
+  };
+
+  if (!payload.barcode) return showStatus('❌ Barcode kosong.', 'error');
+  if (!payload.nama) return showStatus('❌ Nama barang wajib diisi.', 'error');
+  if (!payload.hargaNormal) return showStatus('❌ Harga normal wajib diisi.', 'error');
+
+  updateBtn.disabled = true;
+  updateBtn.textContent = '⏳ Menyimpan...';
+  showStatus('Mengirim data ke spreadsheet...', 'info');
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showStatus('✅ Data berhasil diperbarui!', 'success');
+      editForm.style.display = 'none';
+      // refresh search
+      searchByName(searchInput.value);
+    } else {
+      showStatus('❌ Gagal: ' + (data.message || 'Unknown error'), 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showStatus('❌ Gagal koneksi: ' + err.message, 'error');
+  } finally {
+    updateBtn.disabled = false;
+    updateBtn.textContent = '💾 Update';
+  }
+}
+
+// ============================================================
+// UTIL
+// ============================================================
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+function formatRp(v) {
+  const n = Number(v);
+  if (!isFinite(n) || n === 0) return '0';
+  return n.toLocaleString('id-ID');
+}
+
+// ============================================================
 // EVENT LISTENERS
 // ============================================================
 camBtn.addEventListener('click', openCamera);
 closeCamBtn.addEventListener('click', closeCamera);
+torchBtn.addEventListener('click', toggleTorch);
 saveBtn.addEventListener('click', saveData);
 resetBtn.addEventListener('click', () => {
   resetForm();
@@ -480,7 +871,7 @@ resetBtn.addEventListener('click', () => {
   hideStatus();
 });
 
-// Ketik manual → cek otomatis setelah 800ms berhenti mengetik
+// Barcode manual → cek otomatis setelah 800ms
 barcodeEl.addEventListener('input', () => {
   clearTimeout(debounceTimer);
   const val = barcodeEl.value.trim();
@@ -492,13 +883,37 @@ barcodeEl.addEventListener('input', () => {
   }, 800);
 });
 
-// Enter di input barcode → langsung cek
 barcodeEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
     clearTimeout(debounceTimer);
     lookupBarcode(barcodeEl.value.trim());
   }
+});
+
+// Search
+searchBtn.addEventListener('click', () => searchByName(searchInput.value));
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  const val = searchInput.value.trim();
+  if (val.length < 2) {
+    searchResults.innerHTML = '';
+    editForm.style.display = 'none';
+    return;
+  }
+  searchDebounce = setTimeout(() => searchByName(val), 500);
+});
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    clearTimeout(searchDebounce);
+    searchByName(searchInput.value);
+  }
+});
+
+updateBtn.addEventListener('click', updateData);
+cancelEditBtn.addEventListener('click', () => {
+  editForm.style.display = 'none';
 });
 
 // Tutup modal jika klik di luar box
