@@ -32,6 +32,7 @@
   header h1 { font-size: 20px; font-weight: 600; }
   header p { font-size: 13px; opacity: 0.9; margin-top: 4px; }
 
+  /* ===== Tab Menu ===== */
   .tabs {
     display: flex;
     background: #f8fafc;
@@ -320,15 +321,15 @@
       </div>
       <div class="form-group">
         <label>Harga Normal (Rp)</label>
-        <input type="number" id="hargaNormal" readonly>
+        <input type="text" id="hargaNormal" readonly placeholder="-">
       </div>
       <div class="form-group">
         <label>Harga Promo (Rp)</label>
-        <input type="number" id="hargaPromo" readonly>
+        <input type="text" id="hargaPromo" readonly placeholder="-">
       </div>
       <div class="form-group">
         <label>Stok</label>
-        <input type="number" id="stok" readonly>
+        <input type="number" id="stok" readonly placeholder="-">
       </div>
 
       <div class="btn-row">
@@ -570,7 +571,7 @@ async function onBarcodeScanned(text) {
 }
 
 // ============================================================
-// LOOKUP BARCODE (READ-ONLY)
+// LOOKUP BARCODE (READ-ONLY + FORMAT TITIK)
 // ============================================================
 async function lookupBarcode(text) {
   const barcode = String(text || '').trim();
@@ -587,10 +588,20 @@ async function lookupBarcode(text) {
 
     if (data.found && data.item) {
       namaEl.value = data.item.nama || '';
-      hargaNormalEl.value = data.item.hargaNormal || '';
-      hargaPromoEl.value = data.item.hargaPromo || '';
-      stokEl.value = data.item.stok || '';
 
+      // Format harga dengan titik ribuan
+      hargaNormalEl.value = Number(data.item.hargaNormal) > 0
+        ? formatRp(data.item.hargaNormal)
+        : '';
+      hargaPromoEl.value = Number(data.item.hargaPromo) > 0
+        ? formatRp(data.item.hargaPromo)
+        : '';
+
+      stokEl.value = data.item.stok !== '' && data.item.stok !== null && data.item.stok !== undefined
+        ? data.item.stok
+        : '';
+
+      // Pesan status dengan format titik
       const hargaNormal = Number(data.item.hargaNormal) || 0;
       const hargaPromo = Number(data.item.hargaPromo) || 0;
       const adaPromo = hargaPromo > 0 && hargaPromo < hargaNormal;
