@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scan Barang - Toko</title>
-<!-- ZXing versi baru: browser + library -->
 <script src="https://unpkg.com/@zxing/library@0.21.3"></script>
 <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
 <style>
@@ -237,13 +236,7 @@
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
     background: #fff;
-  }
-  .search-result-item:hover {
-    border-color: #2563eb;
-    background: #eff6ff;
   }
   .search-result-item .name {
     font-weight: 600;
@@ -254,38 +247,43 @@
   .search-result-item .meta {
     font-size: 12px;
     color: #6b7280;
+    margin-bottom: 6px;
+  }
+  .search-result-item .price-box {
+    margin-top: 8px;
     display: flex;
     gap: 10px;
+    align-items: baseline;
     flex-wrap: wrap;
   }
-  .search-result-item .meta .price { color: #059669; font-weight: 600; }
-  .search-result-item .meta .promo { color: #dc2626; font-weight: 600; }
-  .search-result-item .meta .stock { color: #7c3aed; }
+  .search-result-item .price-main {
+    font-size: 18px;
+    font-weight: 700;
+    color: #059669;
+  }
+  .search-result-item .price-old {
+    font-size: 13px;
+    color: #9ca3af;
+    text-decoration: line-through;
+  }
+  .search-result-item .price-promo {
+    font-size: 18px;
+    font-weight: 700;
+    color: #dc2626;
+  }
+  .search-result-item .stock-box {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #7c3aed;
+    font-weight: 600;
+  }
+  .search-result-item .stock-box.habis { color: #dc2626; }
+
   .search-empty {
     text-align: center;
     padding: 24px;
     color: #9ca3af;
     font-size: 13px;
-  }
-
-  /* ===== Edit inline ===== */
-  .edit-form {
-    padding: 16px;
-    border-top: 1px solid #e5e7eb;
-    background: #f9fafb;
-  }
-  .edit-form h3 {
-    font-size: 14px;
-    margin-bottom: 12px;
-    color: #374151;
-  }
-  .edit-form .form-group { margin-bottom: 10px; }
-  .edit-form input { font-size: 14px; padding: 10px; }
-
-  .divider {
-    height: 1px;
-    background: #e5e7eb;
-    margin: 12px 0;
   }
 </style>
 </head>
@@ -293,10 +291,9 @@
 <div class="container">
   <header>
     <h1>📦 Scan Barang</h1>
-    <p>Scan barcode / QR code atau cari dari nama barang</p>
+    <p>Cek harga &amp; tambah barang ke database</p>
   </header>
 
-  <!-- Tab Menu -->
   <div class="tabs">
     <button class="tab active" data-tab="scan">📷 Scan &amp; Tambah</button>
     <button class="tab" data-tab="search">🔍 Cari Barang</button>
@@ -340,47 +337,18 @@
     <div class="last-scan" id="lastScan"></div>
   </div>
 
-  <!-- ================= TAB: CARI BARANG ================= -->
+  <!-- ================= TAB: CARI BARANG (HANYA LIHAT) ================= -->
   <div class="tab-content" id="tab-search">
     <div class="form-section">
       <div class="form-group">
-        <label>Cari berdasarkan nama barang</label>
+        <label>Cari berdasarkan nama atau barcode</label>
         <div class="barcode-row">
-          <input type="text" id="searchInput" placeholder="Ketik nama barang..." autocomplete="off">
+          <input type="text" id="searchInput" placeholder="Ketik nama barang / barcode..." autocomplete="off">
           <button class="btn-cam" id="searchBtn" title="Cari">🔍</button>
         </div>
       </div>
 
       <div id="searchResults"></div>
-
-      <!-- Form edit yang muncul setelah hasil diklik -->
-      <div class="edit-form" id="editForm" style="display:none;">
-        <h3>✏️ Edit Barang</h3>
-        <div class="form-group">
-          <label>Barcode</label>
-          <input type="text" id="editBarcode" readonly style="background:#e5e7eb;">
-        </div>
-        <div class="form-group">
-          <label>Nama Barang</label>
-          <input type="text" id="editNama">
-        </div>
-        <div class="form-group">
-          <label>Harga Normal (Rp)</label>
-          <input type="number" id="editHargaNormal">
-        </div>
-        <div class="form-group">
-          <label>Harga Promo (Rp)</label>
-          <input type="number" id="editHargaPromo">
-        </div>
-        <div class="form-group">
-          <label>Stok</label>
-          <input type="number" id="editStok">
-        </div>
-        <div class="btn-row">
-          <button class="btn-main btn-secondary" id="cancelEditBtn">✖️ Batal</button>
-          <button class="btn-main btn-primary" id="updateBtn">💾 Update</button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -432,20 +400,12 @@ const stokEl = document.getElementById('stok');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const searchResults = document.getElementById('searchResults');
-const editForm = document.getElementById('editForm');
-const editBarcode = document.getElementById('editBarcode');
-const editNama = document.getElementById('editNama');
-const editHargaNormal = document.getElementById('editHargaNormal');
-const editHargaPromo = document.getElementById('editHargaPromo');
-const editStok = document.getElementById('editStok');
-const updateBtn = document.getElementById('updateBtn');
-const cancelEditBtn = document.getElementById('cancelEditBtn');
 
 // ============================================================
 // STATE
 // ============================================================
 let codeReader = null;
-let controls = null;   // dari @zxing/browser
+let controls = null;
 let isScanning = false;
 let debounceTimer = null;
 let searchDebounce = null;
@@ -477,7 +437,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 // ============================================================
-// KAMERA - BUKA (modern: @zxing/browser)
+// KAMERA - BUKA
 // ============================================================
 async function openCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -494,7 +454,6 @@ async function openCamera() {
     camBtn.disabled = true;
     torchBtn.classList.remove('active');
 
-    // Hint: kamera belakang, resolusi ideal
     const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
@@ -504,7 +463,6 @@ async function openCamera() {
       }
     };
 
-    // Hint format yang didukung (barcode + QR)
     const hints = new Map();
     const formats = [
       ZXing.BarcodeFormat.QR_CODE,
@@ -536,21 +494,15 @@ async function openCamera() {
         if (result && isScanning) {
           onBarcodeScanned(result.getText());
         }
-        // abaikan error "NotFoundException" — normal saat belum ada kode
       }
     );
 
     isScanning = true;
 
-    // Simpan track untuk torch
     if (video.srcObject) {
       currentTrack = video.srcObject.getVideoTracks()[0];
       const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-      if (caps && caps.torch) {
-        torchBtn.style.display = '';
-      } else {
-        torchBtn.style.display = 'none';
-      }
+      torchBtn.style.display = (caps && caps.torch) ? '' : 'none';
     } else {
       torchBtn.style.display = 'none';
     }
@@ -587,7 +539,7 @@ function closeCamera() {
 }
 
 // ============================================================
-// TORCH (SENTER)
+// TORCH
 // ============================================================
 async function toggleTorch() {
   if (!currentTrack) return;
@@ -603,7 +555,7 @@ async function toggleTorch() {
 }
 
 // ============================================================
-// BARCODE TERBACA DARI KAMERA
+// BARCODE TERBACA
 // ============================================================
 async function onBarcodeScanned(text) {
   if (!isScanning) return;
@@ -618,7 +570,7 @@ async function onBarcodeScanned(text) {
 }
 
 // ============================================================
-// LOOKUP BARCODE KE SERVER
+// LOOKUP BARCODE
 // ============================================================
 async function lookupBarcode(text) {
   const barcode = String(text || '').trim();
@@ -638,7 +590,7 @@ async function lookupBarcode(text) {
       hargaNormalEl.value = data.item.hargaNormal || '';
       hargaPromoEl.value = data.item.hargaPromo || '';
       stokEl.value = data.item.stok || '';
-      showStatus('✅ Barang ditemukan. Silakan update jika perlu.', 'success');
+      showStatus('✅ Barang ditemukan. Harga: Rp ' + formatRp(data.item.hargaNormal), 'success');
     } else {
       namaEl.value = '';
       hargaNormalEl.value = '';
@@ -676,7 +628,7 @@ function vibrate() {
 }
 
 // ============================================================
-// SIMPAN (TAB SCAN)
+// SIMPAN (hanya di tab Scan)
 // ============================================================
 async function saveData() {
   const payload = {
@@ -729,18 +681,16 @@ function resetForm() {
 }
 
 // ============================================================
-// SEARCH BY NAME
+// SEARCH BY NAME (HANYA LIHAT — tidak ada edit)
 // ============================================================
 async function searchByName(query) {
   const q = String(query || '').trim();
   if (!q) {
     searchResults.innerHTML = '<div class="search-empty">Ketik nama barang untuk mencari.</div>';
-    editForm.style.display = 'none';
     return;
   }
 
   searchResults.innerHTML = '<div class="search-empty">🔍 Mencari...</div>';
-  editForm.style.display = 'none';
 
   try {
     const res = await fetch(API_URL + '?nama=' + encodeURIComponent(q), {
@@ -749,8 +699,6 @@ async function searchByName(query) {
     });
     const data = await res.json();
 
-    // Server ideal mengembalikan { found: true, items: [...] }
-    // Fallback: jika server hanya mengembalikan satu item
     let items = [];
     if (Array.isArray(data.items)) items = data.items;
     else if (data.found && data.item) items = [data.item];
@@ -773,72 +721,28 @@ function renderSearchResults(items) {
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = 'search-result-item';
+
+    const hargaNormal = Number(item.hargaNormal) || 0;
+    const hargaPromo = Number(item.hargaPromo) || 0;
+    const adaPromo = hargaPromo > 0 && hargaPromo < hargaNormal;
+    const stok = Number(item.stok) || 0;
+    const stokHabis = stok <= 0;
+
     div.innerHTML = `
       <div class="name">${escapeHtml(item.nama || '(tanpa nama)')}</div>
-      <div class="meta">
-        <span>🏷️ ${escapeHtml(item.barcode || '-')}</span>
-        <span class="price">Rp ${formatRp(item.hargaNormal)}</span>
-        ${item.hargaPromo ? `<span class="promo">Promo Rp ${formatRp(item.hargaPromo)}</span>` : ''}
-        <span class="stock">Stok: ${escapeHtml(String(item.stok ?? '-'))}</span>
+      <div class="meta">🏷️ ${escapeHtml(item.barcode || '-')}</div>
+      <div class="price-box">
+        ${adaPromo
+          ? `<span class="price-old">Rp ${formatRp(hargaNormal)}</span>
+             <span class="price-promo">Rp ${formatRp(hargaPromo)}</span>`
+          : `<span class="price-main">Rp ${formatRp(hargaNormal)}</span>`}
+      </div>
+      <div class="stock-box ${stokHabis ? 'habis' : ''}">
+        ${stokHabis ? '❌ Stok habis' : `📦 Stok: ${stok}`}
       </div>
     `;
-    div.addEventListener('click', () => openEditForm(item));
     searchResults.appendChild(div);
   });
-}
-
-function openEditForm(item) {
-  editForm.style.display = 'block';
-  editBarcode.value = item.barcode || '';
-  editNama.value = item.nama || '';
-  editHargaNormal.value = item.hargaNormal || '';
-  editHargaPromo.value = item.hargaPromo || '';
-  editStok.value = item.stok || '';
-  editNama.focus();
-  editForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-async function updateData() {
-  const payload = {
-    barcode: editBarcode.value.trim(),
-    nama: editNama.value.trim(),
-    hargaNormal: editHargaNormal.value,
-    hargaPromo: editHargaPromo.value,
-    stok: editStok.value
-  };
-
-  if (!payload.barcode) return showStatus('❌ Barcode kosong.', 'error');
-  if (!payload.nama) return showStatus('❌ Nama barang wajib diisi.', 'error');
-  if (!payload.hargaNormal) return showStatus('❌ Harga normal wajib diisi.', 'error');
-
-  updateBtn.disabled = true;
-  updateBtn.textContent = '⏳ Menyimpan...';
-  showStatus('Mengirim data ke spreadsheet...', 'info');
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      showStatus('✅ Data berhasil diperbarui!', 'success');
-      editForm.style.display = 'none';
-      // refresh search
-      searchByName(searchInput.value);
-    } else {
-      showStatus('❌ Gagal: ' + (data.message || 'Unknown error'), 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showStatus('❌ Gagal koneksi: ' + err.message, 'error');
-  } finally {
-    updateBtn.disabled = false;
-    updateBtn.textContent = '💾 Update';
-  }
 }
 
 // ============================================================
@@ -871,7 +775,6 @@ resetBtn.addEventListener('click', () => {
   hideStatus();
 });
 
-// Barcode manual → cek otomatis setelah 800ms
 barcodeEl.addEventListener('input', () => {
   clearTimeout(debounceTimer);
   const val = barcodeEl.value.trim();
@@ -898,7 +801,6 @@ searchInput.addEventListener('input', () => {
   const val = searchInput.value.trim();
   if (val.length < 2) {
     searchResults.innerHTML = '';
-    editForm.style.display = 'none';
     return;
   }
   searchDebounce = setTimeout(() => searchByName(val), 500);
@@ -911,17 +813,10 @@ searchInput.addEventListener('keydown', (e) => {
   }
 });
 
-updateBtn.addEventListener('click', updateData);
-cancelEditBtn.addEventListener('click', () => {
-  editForm.style.display = 'none';
-});
-
-// Tutup modal jika klik di luar box
 scannerModal.addEventListener('click', (e) => {
   if (e.target === scannerModal) closeCamera();
 });
 
-// Cek HTTPS
 if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
   showStatus('⚠️ Kamera butuh HTTPS. Gunakan GitHub Pages.', 'error');
 }
