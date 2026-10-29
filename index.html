@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scan Barang - Toko</title>
+<title>Cek Harga Barang - Toko</title>
 <script src="https://unpkg.com/@zxing/library@0.21.3"></script>
 <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
 <style>
@@ -32,7 +32,6 @@
   header h1 { font-size: 20px; font-weight: 600; }
   header p { font-size: 13px; opacity: 0.9; margin-top: 4px; }
 
-  /* ===== Tab Menu ===== */
   .tabs {
     display: flex;
     background: #f8fafc;
@@ -167,7 +166,14 @@
     border-color: #2563eb;
   }
 
-  /* ===== Input Barcode + tombol kamera ===== */
+  /* ===== Readonly input ===== */
+  input[readonly] {
+    background: #f3f4f6;
+    color: #374151;
+    cursor: not-allowed;
+  }
+  input[readonly]:focus { border-color: #d1d5db; }
+
   .barcode-row {
     display: flex;
     gap: 8px;
@@ -204,9 +210,6 @@
     transition: all 0.2s;
   }
   button.btn-main:active { transform: scale(0.97); }
-  .btn-primary { background: #2563eb; color: #fff; }
-  .btn-primary:hover { background: #1d4ed8; }
-  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
   .btn-secondary { background: #e5e7eb; color: #374151; }
   .btn-secondary:hover { background: #d1d5db; }
 
@@ -290,18 +293,18 @@
 <body>
 <div class="container">
   <header>
-    <h1>📦 Scan Barang</h1>
-    <p>Cek harga &amp; tambah barang ke database</p>
+    <h1>📦 Cek Harga Barang</h1>
+    <p>Scan barcode / QR atau cari nama untuk melihat harga</p>
   </header>
 
   <div class="tabs">
-    <button class="tab active" data-tab="scan">📷 Scan &amp; Tambah</button>
+    <button class="tab active" data-tab="scan">📷 Scan Barcode</button>
     <button class="tab" data-tab="search">🔍 Cari Barang</button>
   </div>
 
   <div class="status" id="status"></div>
 
-  <!-- ================= TAB: SCAN & TAMBAH ================= -->
+  <!-- ================= TAB: SCAN (READ-ONLY) ================= -->
   <div class="tab-content active" id="tab-scan">
     <div class="form-section">
       <div class="form-group">
@@ -313,31 +316,30 @@
       </div>
       <div class="form-group">
         <label>Nama Barang</label>
-        <input type="text" id="nama" autocomplete="off">
+        <input type="text" id="nama" readonly>
       </div>
       <div class="form-group">
         <label>Harga Normal (Rp)</label>
-        <input type="number" id="hargaNormal">
+        <input type="number" id="hargaNormal" readonly>
       </div>
       <div class="form-group">
         <label>Harga Promo (Rp)</label>
-        <input type="number" id="hargaPromo">
+        <input type="number" id="hargaPromo" readonly>
       </div>
       <div class="form-group">
         <label>Stok</label>
-        <input type="number" id="stok">
+        <input type="number" id="stok" readonly>
       </div>
 
       <div class="btn-row">
         <button class="btn-main btn-secondary" id="resetBtn">🔄 Reset</button>
-        <button class="btn-main btn-primary" id="saveBtn">💾 Simpan</button>
       </div>
     </div>
 
     <div class="last-scan" id="lastScan"></div>
   </div>
 
-  <!-- ================= TAB: CARI BARANG (HANYA LIHAT) ================= -->
+  <!-- ================= TAB: CARI BARANG ================= -->
   <div class="tab-content" id="tab-search">
     <div class="form-section">
       <div class="form-group">
@@ -385,7 +387,6 @@ const camBtn = document.getElementById('camBtn');
 const scannerModal = document.getElementById('scannerModal');
 const closeCamBtn = document.getElementById('closeCamBtn');
 const torchBtn = document.getElementById('torchBtn');
-const saveBtn = document.getElementById('saveBtn');
 const resetBtn = document.getElementById('resetBtn');
 const statusEl = document.getElementById('status');
 const lastScanEl = document.getElementById('lastScan');
@@ -396,7 +397,6 @@ const hargaNormalEl = document.getElementById('hargaNormal');
 const hargaPromoEl = document.getElementById('hargaPromo');
 const stokEl = document.getElementById('stok');
 
-// Tab search elements
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const searchResults = document.getElementById('searchResults');
@@ -570,7 +570,7 @@ async function onBarcodeScanned(text) {
 }
 
 // ============================================================
-// LOOKUP BARCODE
+// LOOKUP BARCODE (READ-ONLY)
 // ============================================================
 async function lookupBarcode(text) {
   const barcode = String(text || '').trim();
@@ -590,18 +590,24 @@ async function lookupBarcode(text) {
       hargaNormalEl.value = data.item.hargaNormal || '';
       hargaPromoEl.value = data.item.hargaPromo || '';
       stokEl.value = data.item.stok || '';
-      showStatus('✅ Barang ditemukan. Harga: Rp ' + formatRp(data.item.hargaNormal), 'success');
+
+      const hargaNormal = Number(data.item.hargaNormal) || 0;
+      const hargaPromo = Number(data.item.hargaPromo) || 0;
+      const adaPromo = hargaPromo > 0 && hargaPromo < hargaNormal;
+      const pesan = adaPromo
+        ? `✅ ${data.item.nama} — Promo Rp ${formatRp(hargaPromo)} (normal Rp ${formatRp(hargaNormal)})`
+        : `✅ ${data.item.nama} — Rp ${formatRp(hargaNormal)}`;
+      showStatus(pesan, 'success');
     } else {
       namaEl.value = '';
       hargaNormalEl.value = '';
       hargaPromoEl.value = '';
       stokEl.value = '';
-      showStatus('🆕 Barang baru. Isi data lalu simpan.', 'success');
-      namaEl.focus();
+      showStatus('❌ Barcode tidak terdaftar di database.', 'error');
     }
   } catch (err) {
     console.error(err);
-    showStatus('⚠️ Gagal cek ke server. Isi manual lalu simpan.', 'error');
+    showStatus('⚠️ Gagal cek ke server.', 'error');
   }
 }
 
@@ -628,50 +634,8 @@ function vibrate() {
 }
 
 // ============================================================
-// SIMPAN (hanya di tab Scan)
+// RESET FORM
 // ============================================================
-async function saveData() {
-  const payload = {
-    barcode: barcodeEl.value.trim(),
-    nama: namaEl.value.trim(),
-    hargaNormal: hargaNormalEl.value,
-    hargaPromo: hargaPromoEl.value,
-    stok: stokEl.value
-  };
-
-  if (!payload.barcode) return showStatus('❌ Barcode kosong.', 'error');
-  if (!payload.nama) return showStatus('❌ Nama barang wajib diisi.', 'error');
-  if (!payload.hargaNormal) return showStatus('❌ Harga normal wajib diisi.', 'error');
-
-  saveBtn.disabled = true;
-  saveBtn.textContent = '⏳ Menyimpan...';
-  showStatus('Mengirim data ke spreadsheet...', 'info');
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      showStatus('✅ Data berhasil disimpan!', 'success');
-      lastScanEl.textContent = `✅ Tersimpan: ${payload.nama} (${payload.barcode})`;
-      resetForm();
-    } else {
-      showStatus('❌ Gagal: ' + (data.message || 'Unknown error'), 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showStatus('❌ Gagal koneksi: ' + err.message, 'error');
-  } finally {
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 Simpan';
-  }
-}
-
 function resetForm() {
   barcodeEl.value = '';
   namaEl.value = '';
@@ -681,7 +645,7 @@ function resetForm() {
 }
 
 // ============================================================
-// SEARCH BY NAME (HANYA LIHAT — tidak ada edit)
+// SEARCH BY NAME (READ-ONLY)
 // ============================================================
 async function searchByName(query) {
   const q = String(query || '').trim();
@@ -768,7 +732,6 @@ function formatRp(v) {
 camBtn.addEventListener('click', openCamera);
 closeCamBtn.addEventListener('click', closeCamera);
 torchBtn.addEventListener('click', toggleTorch);
-saveBtn.addEventListener('click', saveData);
 resetBtn.addEventListener('click', () => {
   resetForm();
   lastScanEl.textContent = '';
@@ -794,7 +757,6 @@ barcodeEl.addEventListener('keydown', (e) => {
   }
 });
 
-// Search
 searchBtn.addEventListener('click', () => searchByName(searchInput.value));
 searchInput.addEventListener('input', () => {
   clearTimeout(searchDebounce);
